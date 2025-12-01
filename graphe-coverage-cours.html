@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graphes de Tests Logiciels - Guide Interactif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Work+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #0a4d68;
+            --secondary: #088395;
+            --accent: #05bfdb;
+            --warm: #00ffca;
+            --bg-light: #f8fffe;
+            --bg-dark: #0d1b2a;
+            --text-dark: #1b263b;
+            --text-light: #e0e1dd;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: linear-gradient(135deg, var(--bg-light) 0%, #e8f4f8 100%);
+            color: var(--text-dark);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        body.dark {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #1e3a52 100%);
+            color: var(--text-light);
+        }
+
+        h1, h2, h3 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 900;
+        }
+
+        .hero {
+            min-height: 60vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 50%, var(--accent) 100%);
+            padding: 3rem 1rem;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: moveGrid 20s linear infinite;
+        }
+
+        @keyframes moveGrid {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            color: white;
+            max-width: 900px;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 5rem);
+            margin-bottom: 1rem;
+            text-shadow: 2px 4px 8px rgba(0,0,0,0.3);
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .hero p {
+            font-size: clamp(1rem, 2vw, 1.3rem);
+            opacity: 0.95;
+            animation: fadeInUp 1s ease-out 0.2s backwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .dark .card {
+            background: rgba(30, 58, 82, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(5, 191, 219, 0.2);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(8, 131, 149, 0.2);
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: transparent;
+            color: var(--secondary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 8px 8px 0 0;
+            font-size: 16px;
+        }
+
+        .tab:hover {
+            background: rgba(5, 191, 219, 0.1);
+        }
+
+        .tab.active {
+            background: var(--accent);
+            color: white;
+            box-shadow: 0 -3px 10px rgba(5, 191, 219, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #graphContainer {
+            height: 500px;
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            background: linear-gradient(135deg, #f8fffe 0%, #ffffff 100%);
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .dark #graphContainer {
+            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 100%);
+        }
+
+        .code-block {
+            background: #1e3a52;
+            color: #00ffca;
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            margin: 1rem 0;
+            border-left: 4px solid var(--accent);
+        }
+
+        .dark .code-block {
+            background: #0d1b2a;
+            border-left: 4px solid var(--warm);
+        }
+
+        .criterion-card {
+            background: linear-gradient(135deg, var(--secondary) 0%, var(--accent) 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .criterion-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(5, 191, 219, 0.4);
+        }
+
+        .criterion-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .criterion-details.open {
+            max-height: 500px;
+            padding: 1rem;
+        }
+
+        .interactive-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(5, 191, 219, 0.3);
+        }
+
+        .interactive-btn:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(8, 131, 149, 0.4);
+        }
+
+        .interactive-btn:active {
+            transform: translateY(0);
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            font-size: 20px;
+        }
+
+        .dark .theme-toggle {
+            background: var(--primary);
+            color: var(--warm);
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(180deg) scale(1.1);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(5, 191, 219, 0.1) 0%, rgba(8, 131, 149, 0.1) 100%);
+            border-left: 4px solid var(--accent);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+        }
+
+        .dark .info-box {
+            background: linear-gradient(135deg, rgba(5, 191, 219, 0.15) 0%, rgba(8, 131, 149, 0.15) 100%);
+            border-left: 4px solid var(--warm);
+        }
+
+        .path-display {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            padding: 1rem;
+            background: rgba(5, 191, 219, 0.1);
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .path-node {
+            background: var(--accent);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .path-arrow {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 900;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .tab {
+                padding: 0.5rem 1rem;
+                font-size: 14px;
+            }
+
+            #graphContainer {
+                height: 350px;
+            }
+        }
+
+        .resource-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            background: rgba(5, 191, 219, 0.1);
+            margin: 0.5rem 0;
+        }
+
+        .resource-link:hover {
+            background: var(--accent);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .dark .resource-link {
+            color: var(--warm);
+            background: rgba(0, 255, 202, 0.1);
+        }
+
+        .dark .resource-link:hover {
+            background: var(--warm);
+            color: var(--bg-dark);
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <div class="hero">
+        <div class="hero-content">
+            <h1>Graphes de Tests Logiciels</h1>
+            <p>Un guide interactif complet sur les critères de couverture et l'optimisation des chemins de test</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <h2 style="color: var(--primary); margin-bottom: 1rem;">📚 Introduction aux Graphes de Flux de Contrôle</h2>
+            <p>Les <strong>graphes de flux de contrôle (Control Flow Graphs - CFG)</strong> sont des représentations visuelles de tous les chemins qu'un programme peut emprunter lors de son exécution. Ils constituent un outil fondamental dans les tests logiciels pour analyser et générer des cas de test efficaces.</p>
+
+            <div class="info-box">
+                <h3 style="margin-bottom: 0.5rem;"><i class="fas fa-info-circle"></i> Composants d'un Graphe</h3>
+                <ul style="margin-left: 1.5rem;">
+                    <li><strong>Nœuds (N)</strong> : Représentent les instructions ou blocs d'instructions</li>
+                    <li><strong>Arêtes (E)</strong> : Représentent le flux de contrôle entre les nœuds</li>
+                    <li><strong>Nœud Initial (n₀)</strong> : Point d'entrée du programme</li>
+                    <li><strong>Nœud Final (nf)</strong> : Point de sortie du programme</li>
+                </ul>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">6</div>
+                    <div class="stat-label">Critères de Couverture Principaux</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">∞</div>
+                    <div class="stat-label">Chemins Possibles (avec boucles)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">NC</div>
+                    <div class="stat-label">Couverture des Nœuds</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">EC</div>
+                    <div class="stat-label">Couverture des Arêtes</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="tab-container">
+                <button class="tab active" data-tab="visualisation">🎨 Visualisation Interactive</button>
+                <button class="tab" data-tab="criteres">📊 Critères de Couverture</button>
+                <button class="tab" data-tab="optimisation">⚡ Optimisation</button>
+                <button class="tab" data-tab="ressources">📖 Ressources</button>
+            </div>
+
+            <div id="visualisation" class="tab-content active">
+                <h2 style="margin-bottom: 1rem;">Graphe de Flux de Contrôle Interactif</h2>
+                <p>Ce graphe représente un exemple typique de flux de contrôle avec des structures conditionnelles et des boucles.</p>
+
+                <div style="margin: 1.5rem 0;">
+                    <button class="interactive-btn" id="resetGraph"><i class="fas fa-redo"></i> Réinitialiser</button>
+                    <button class="interactive-btn" id="highlightNodes" style="background: var(--secondary);"><i class="fas fa-circle"></i> Couvrir Nœuds</button>
+                    <button class="interactive-btn" id="highlightEdges" style="background: var(--primary);"><i class="fas fa-arrow-right"></i> Couvrir Arêtes</button>
+                </div>
+
+                <div id="graphContainer"></div>
+
+                <div class="info-box" style="margin-top: 1.5rem;">
+                    <h3><i class="fas fa-lightbulb"></i> Exemple de Chemins</h3>
+                    <div class="path-display" id="pathDisplay">
+                        <div class="path-node">n0</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n1</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n2</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n5</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n6</div>
+                    </div>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">Cliquez sur les boutons ci-dessus pour visualiser différents critères de couverture</p>
+                </div>
+            </div>
+
+            <div id="criteres" class="tab-content">
+                <h2 style="margin-bottom: 1rem;">Critères de Couverture Structurelle</h2>
+                <p>Les critères de couverture définissent quelles parties du code doivent être testées. Voici les principaux critères utilisés dans les tests basés sur les graphes :</p>
+
+                <div class="criterion-card" onclick="toggleDetails('nc')">
+                    <h3><i class="fas fa-circle"></i> Node Coverage (NC) - Couverture des Nœuds</h3>
+                    <div class="criterion-details" id="nc">
+                        <p><strong>Définition :</strong> Chaque nœud du graphe doit être visité au moins une fois.</p>
+                        <p><strong>Formule :</strong> TR = { n | n ∈ reachableNodes(G) }</p>
+                        <p><strong>Exemple :</strong> Pour un graphe avec 5 nœuds, il faut au minimum un chemin qui passe par chaque nœud.</p>
+                        <div class="code-block">
+// Test satisfaisant NC pour:
+if (x > 0) {
+    y = x + 1;  // Nœud 1
+} else {
+    y = x - 1;  // Nœud 2
+}
+// Besoin de 2 tests: x=1 et x=-1
+                        </div>
+                        <p><strong>Points clés :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Le critère le plus faible mais fondamental</li>
+                            <li>Garantit que chaque instruction est exécutée</li>
+                            <li>Ne garantit pas la couverture de toutes les branches</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="criterion-card" onclick="toggleDetails('ec')">
+                    <h3><i class="fas fa-arrow-right"></i> Edge Coverage (EC) - Couverture des Arêtes</h3>
+                    <div class="criterion-details" id="ec">
+                        <p><strong>Définition :</strong> Chaque arête (transition) du graphe doit être parcourue au moins une fois.</p>
+                        <p><strong>Formule :</strong> TR = { e | e ∈ reachableEdges(G) }</p>
+                        <p><strong>Relation :</strong> EC subsume NC (EC ⊃ NC)</p>
+                        <div class="code-block">
+// Test satisfaisant EC pour:
+if (x > 0) {
+    if (y > 0) {
+        z = 1;  // Arête: x>0 → y>0 → z=1
+    } else {
+        z = 2;  // Arête: x>0 → y≤0 → z=2
+    }
+}
+// Besoin de plusieurs tests pour couvrir toutes les arêtes
+                        </div>
+                        <p><strong>Points clés :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Plus fort que NC - couvre aussi tous les nœuds</li>
+                            <li>Garantit que chaque décision est testée</li>
+                            <li>Standard minimum dans l'industrie</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="criterion-card" onclick="toggleDetails('epc')">
+                    <h3><i class="fas fa-project-diagram"></i> Edge-Pair Coverage (EPC) - Couverture des Paires d'Arêtes</h3>
+                    <div class="criterion-details" id="epc">
+                        <p><strong>Définition :</strong> Pour chaque paire d'arêtes consécutives (e₁, e₂), il doit exister un chemin de test qui les parcourt.</p>
+                        <p><strong>Formule :</strong> TR = { [e₁, e₂] | e₁, e₂ ∈ reachableEdges(G) ∧ e₁ est consécutif à e₂ }</p>
+                        <p><strong>Relation :</strong> EPC subsume EC (EPC ⊃ EC ⊃ NC)</p>
+                        <p><strong>Points clés :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Détecte les erreurs d'interaction entre décisions</li>
+                            <li>Particulièrement utile pour les boucles</li>
+                            <li>Complexité raisonnable pour la plupart des programmes</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="criterion-card" onclick="toggleDetails('pc')">
+                    <h3><i class="fas fa-route"></i> Prime Path Coverage (PPC) - Couverture des Chemins Premiers</h3>
+                    <div class="criterion-details" id="pc">
+                        <p><strong>Définition :</strong> Un chemin premier est un chemin simple (sans répétition de nœuds) qui n'est un sous-chemin d'aucun autre chemin simple.</p>
+                        <p><strong>Caractéristiques :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Chemin maximal sans cycles internes</li>
+                            <li>Ne peut pas être étendu sans créer de cycle</li>
+                            <li>Subsume EPC, EC, et NC</li>
+                        </ul>
+                        <p><strong>Avantages :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Équilibre entre exhaustivité et praticabilité</li>
+                            <li>Nombre fini de chemins même avec boucles</li>
+                            <li>Couverture structurelle complète</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="criterion-card" onclick="toggleDetails('cpc')">
+                    <h3><i class="fas fa-infinity"></i> Complete Path Coverage (CPC) - Couverture Complète</h3>
+                    <div class="criterion-details" id="cpc">
+                        <p><strong>Définition :</strong> Tous les chemins possibles du graphe doivent être testés.</p>
+                        <p><strong>Problème :</strong> En présence de boucles, le nombre de chemins est infini !</p>
+                        <div class="code-block">
+// Exemple avec boucle:
+while (x > 0) {
+    x = x - 1;
+    // Nombre de chemins = ∞
+    // (0 itération, 1 itération, 2, 3, ...)
+}
+                        </div>
+                        <p><strong>Points clés :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Théoriquement idéal mais pratiquement impossible</li>
+                            <li>Utilisé comme référence théorique</li>
+                            <li>Les autres critères sont des approximations pratiques</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-box" style="margin-top: 2rem;">
+                    <h3><i class="fas fa-layer-group"></i> Hiérarchie de Subsomption</h3>
+                    <p>Les critères forment une hiérarchie où les critères plus forts incluent automatiquement les plus faibles :</p>
+                    <div style="text-align: center; font-size: 1.2rem; margin: 1rem 0; font-family: 'Courier New', monospace;">
+                        CPC ⊃ PPC ⊃ EPC ⊃ EC ⊃ NC
+                    </div>
+                    <p style="font-size: 0.9rem; opacity: 0.8;">Si un ensemble de tests satisfait un critère plus fort, il satisfait automatiquement tous les critères plus faibles.</p>
+                </div>
+            </div>
+
+            <div id="optimisation" class="tab-content">
+                <h2 style="margin-bottom: 1rem;">⚡ Optimisation du Coût des Chemins de Test</h2>
+
+                <div class="info-box">
+                    <h3><i class="fas fa-book"></i> Basé sur la recherche</h3>
+                    <p>D'après l'article "Better Algorithms to Minimize the Cost of Test Paths", plusieurs algorithmes ont été développés pour optimiser la génération de chemins de test.</p>
+                </div>
+
+                <h3 style="margin-top: 2rem; color: var(--secondary);">🎯 Le Problème d'Optimisation</h3>
+                <p>L'objectif est de trouver un ensemble minimal de chemins de test qui satisfait un critère de couverture donné tout en minimisant :</p>
+                <div class="grid-2">
+                    <div class="criterion-card" style="background: linear-gradient(135deg, #0a4d68 0%, #088395 100%);">
+                        <h4><i class="fas fa-dollar-sign"></i> Coût Computationnel</h4>
+                        <p>Temps d'exécution des tests</p>
+                    </div>
+                    <div class="criterion-card" style="background: linear-gradient(135deg, #088395 0%, #05bfdb 100%);">
+                        <h4><i class="fas fa-list-ol"></i> Nombre de Chemins</h4>
+                        <p>Quantité de tests à maintenir</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem; color: var(--secondary);">🔍 Approches d'Optimisation</h3>
+
+                <div class="criterion-card" onclick="toggleDetails('greedy')">
+                    <h3><i class="fas fa-fast-forward"></i> Algorithme Glouton (Greedy)</h3>
+                    <div class="criterion-details" id="greedy">
+                        <p><strong>Principe :</strong> À chaque étape, sélectionner le chemin qui couvre le plus d'éléments non couverts.</p>
+                        <div class="code-block">
+Algorithme Glouton:
+1. Initialiser: Couverts = ∅, Chemins = ∅
+2. Tant que tous les éléments ne sont pas couverts:
+   a. Trouver le chemin p qui couvre le plus
+      d'éléments non encore dans Couverts
+   b. Ajouter p à Chemins
+   c. Ajouter les éléments de p à Couverts
+3. Retourner Chemins
+                        </div>
+                        <p><strong>Avantages :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Rapide et simple à implémenter</li>
+                            <li>Garantie d'approximation logarithmique</li>
+                            <li>Fonctionne bien en pratique</li>
+                        </ul>
+                        <p><strong>Inconvénients :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Ne garantit pas la solution optimale</li>
+                            <li>Peut être sensible à l'ordre des choix</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="criterion-card" onclick="toggleDetails('heuristic')">
+                    <h3><i class="fas fa-brain"></i> Approches Heuristiques</h3>
+                    <div class="criterion-details" id="heuristic">
+                        <p><strong>Techniques avancées :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li><strong>Algorithmes Génétiques :</strong> Évolution d'ensembles de chemins</li>
+                            <li><strong>Recuit Simulé :</strong> Exploration probabiliste de l'espace des solutions</li>
+                            <li><strong>Recherche Locale :</strong> Amélioration itérative d'une solution initiale</li>
+                        </ul>
+                        <p style="margin-top: 1rem;"><strong>Pondération des Chemins :</strong></p>
+                        <p>Certains algorithmes assignent des poids aux chemins basés sur :</p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>La longueur du chemin (nombre d'arêtes)</li>
+                            <li>La complexité des opérations</li>
+                            <li>Les dépendances entre tests</li>
+                            <li>L'historique des défauts trouvés</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="criterion-card" onclick="toggleDetails('ilp')">
+                    <h3><i class="fas fa-calculator"></i> Programmation Linéaire en Nombres Entiers (ILP)</h3>
+                    <div class="criterion-details" id="ilp">
+                        <p><strong>Modélisation du problème :</strong></p>
+                        <div class="code-block">
+Variables:
+  x_p ∈ {0,1} pour chaque chemin p
+  (1 si le chemin est sélectionné, 0 sinon)
+
+Objectif:
+  Minimiser Σ (coût_p × x_p)
+
+Contraintes:
+  Pour chaque élément e à couvrir:
+    Σ x_p ≥ 1
+    (pour tous les chemins p qui couvrent e)
+                        </div>
+                        <p><strong>Avantages :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>Solution optimale garantie (si solvable)</li>
+                            <li>Peut intégrer des contraintes complexes</li>
+                            <li>Frameworks existants (CPLEX, Gurobi)</li>
+                        </ul>
+                        <p><strong>Inconvénients :</strong></p>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>NP-complet - peut être très lent</li>
+                            <li>Ne passe pas à l'échelle pour grands systèmes</li>
+                            <li>Nécessite des outils spécialisés</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-box" style="margin-top: 2rem;">
+                    <h3><i class="fas fa-chart-line"></i> Résultats Empiriques</h3>
+                    <p>Les études montrent que :</p>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>L'algorithme glouton produit des solutions à 10-30% de l'optimal</li>
+                        <li>Les heuristiques avancées peuvent améliorer de 5-15% sur le glouton</li>
+                        <li>L'ILP trouve l'optimal mais uniquement pour des petits graphes (&lt;50 nœuds)</li>
+                        <li>Les approches hybrides (glouton + optimisation locale) offrent le meilleur compromis</li>
+                    </ul>
+                </div>
+
+                <h3 style="margin-top: 2rem; color: var(--secondary);">💡 Stratégies Pratiques</h3>
+                <div class="grid-2">
+                    <div class="info-box">
+                        <h4><i class="fas fa-compress"></i> Réduction du Graphe</h4>
+                        <p>Simplifier le graphe avant optimisation :</p>
+                        <ul style="margin-left: 1rem; font-size: 0.9rem;">
+                            <li>Fusionner nœuds séquentiels</li>
+                            <li>Éliminer code mort</li>
+                            <li>Identifier composantes fortement connexes</li>
+                        </ul>
+                    </div>
+                    <div class="info-box">
+                        <h4><i class="fas fa-filter"></i> Priorisation</h4>
+                        <p>Tester d'abord les parties critiques :</p>
+                        <ul style="margin-left: 1rem; font-size: 0.9rem;">
+                            <li>Code récemment modifié</li>
+                            <li>Fonctionnalités à haut risque</li>
+                            <li>Zones avec historique de bugs</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ressources" class="tab-content">
+                <h2 style="margin-bottom: 1rem;">📖 Ressources et Références</h2>
+
+                <h3 style="color: var(--secondary); margin-top: 2rem;"><i class="fas fa-book"></i> Documents Fournis</h3>
+                <div class="grid-2">
+                    <div class="card" style="margin: 0;">
+                        <h4 style="margin-bottom: 1rem;">Introduction to Software Testing (2nd ed.)</h4>
+                        <p style="font-size: 0.9rem; margin-bottom: 1rem;">Le livre de référence sur les tests logiciels, couvrant en profondeur les graphes de flux de contrôle et les critères de couverture.</p>
+                        <a href="https://pfst.cf2.poecdn.net/base/application/01b96444cd61646b19f0dfd16434985497a8bf1ecb44c7bc603998ffd5bcbada" target="_blank" class="resource-link">
+                            <i class="fas fa-file-pdf"></i> Ouvrir le PDF
+                        </a>
+                    </div>
+                    <div class="card" style="margin: 0;">
+                        <h4 style="margin-bottom: 1rem;">Better Algorithms to Minimize the Cost of Test Paths</h4>
+                        <p style="font-size: 0.9rem; margin-bottom: 1rem;">Article de recherche présentant des algorithmes avancés pour optimiser la génération de chemins de test.</p>
+                        <a href="https://pfst.cf2.poecdn.net/base/application/38345c4f0b96b55d6830bc16b8fce872bd4fd41a3fe85a4464c4a816c10fc0fd" target="_blank" class="resource-link">
+                            <i class="fas fa-file-pdf"></i> Ouvrir le PDF
+                        </a>
+                    </div>
+                </div>
+
+                <h3 style="color: var(--secondary); margin-top: 2rem;"><i class="fas fa-graduation-cap"></i> Concepts Clés à Retenir</h3>
+                <div class="info-box">
+                    <h4>1. Les Graphes de Flux de Contrôle</h4>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>Modélisent tous les chemins d'exécution possibles</li>
+                        <li>Composés de nœuds (instructions) et d'arêtes (transitions)</li>
+                        <li>Essentiels pour l'analyse statique et la génération de tests</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <h4>2. La Hiérarchie de Couverture</h4>
+                    <ul style="margin-left: 1.5rem;">
+                        <li><strong>NC (Node Coverage)</strong> : Base minimale - couvre chaque instruction</li>
+                        <li><strong>EC (Edge Coverage)</strong> : Standard industriel - couvre chaque branche</li>
+                        <li><strong>EPC (Edge-Pair Coverage)</strong> : Détecte les interactions entre décisions</li>
+                        <li><strong>PPC (Prime Path Coverage)</strong> : Équilibre optimal entre exhaustivité et praticabilité</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <h4>3. L'Optimisation des Chemins</h4>
+                    <ul style="margin-left: 1.5rem;">
+                        <li>Trouver le nombre minimal de tests pour un critère donné</li>
+                        <li>Problème NP-complet dans le cas général</li>
+                        <li>Algorithmes gloutons offrent un bon compromis en pratique</li>
+                        <li>Heuristiques avancées pour améliorer les résultats</li>
+                    </ul>
+                </div>
+
+                <h3 style="color: var(--secondary); margin-top: 2rem;"><i class="fas fa-code"></i> Application Pratique</h3>
+                <p>Pour appliquer ces concepts dans vos projets :</p>
+                <div class="code-block">
+# Étapes recommandées:
+
+1. ANALYSE
+   - Construire le CFG du code source
+   - Identifier les chemins critiques
+   - Évaluer la complexité cyclomatique
+
+2. SÉLECTION DU CRITÈRE
+   - NC: Tests de fumée basiques
+   - EC: Tests d'intégration standard
+   - PPC: Tests critiques et de sécurité
+
+3. GÉNÉRATION
+   - Utiliser des outils automatiques (JaCoCo, Coverage.py)
+   - Appliquer algorithmes d'optimisation
+   - Prioriser selon le risque
+
+4. EXÉCUTION & MAINTENANCE
+   - Automatiser avec CI/CD
+   - Monitorer la couverture
+   - Affiner continuellement
+                </div>
+
+                <h3 style="color: var(--secondary); margin-top: 2rem;"><i class="fas fa-tools"></i> Outils Recommandés</h3>
+                <div class="grid-2">
+                    <div class="info-box">
+                        <h4>Analyse de Couverture</h4>
+                        <ul style="margin-left: 1rem; font-size: 0.9rem;">
+                            <li><strong>JaCoCo</strong> (Java)</li>
+                            <li><strong>Coverage.py</strong> (Python)</li>
+                            <li><strong>Istanbul/NYC</strong> (JavaScript)</li>
+                            <li><strong>gcov/lcov</strong> (C/C++)</li>
+                        </ul>
+                    </div>
+                    <div class="info-box">
+                        <h4>Génération de Tests</h4>
+                        <ul style="margin-left: 1rem; font-size: 0.9rem;">
+                            <li><strong>EvoSuite</strong> (Java - génération automatique)</li>
+                            <li><strong>Pex/IntelliTest</strong> (.NET)</li>
+                            <li><strong>AFL/LibFuzzer</strong> (Fuzzing)</li>
+                            <li><strong>Hypothesis</strong> (Python - property testing)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-box" style="margin-top: 2rem; background: linear-gradient(135deg, rgba(5, 191, 219, 0.2) 0%, rgba(8, 131, 149, 0.2) 100%);">
+                    <h3><i class="fas fa-rocket"></i> Pour Aller Plus Loin</h3>
+                    <p>Explorez les domaines avancés :</p>
+                    <ul style="margin-left: 1.5rem;">
+                        <li><strong>Mutation Testing</strong> : Évaluer la qualité des tests en introduisant des bugs</li>
+                        <li><strong>Symbolic Execution</strong> : Analyser tous les chemins symboliquement</li>
+                        <li><strong>Concolic Testing</strong> : Combiner exécution concrète et symbolique</li>
+                        <li><strong>Model-Based Testing</strong> : Générer tests à partir de modèles formels</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themeIcon = themeToggle.querySelector('i');
+
+        themeToggle.addEventListener('click', () => {
+            body.classList.toggle('dark');
+            if (body.classList.contains('dark')) {
+                themeIcon.className = 'fas fa-sun';
+            } else {
+                themeIcon.className = 'fas fa-moon';
+            }
+        });
+
+        // Check for dark mode preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            body.classList.add('dark');
+            themeIcon.className = 'fas fa-sun';
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                body.classList.add('dark');
+                themeIcon.className = 'fas fa-sun';
+            } else {
+                body.classList.remove('dark');
+                themeIcon.className = 'fas fa-moon';
+            }
+        });
+
+        // Tab System
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.getAttribute('data-tab');
+
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(tc => tc.classList.remove('active'));
+
+                tab.classList.add('active');
+                document.getElementById(targetTab).classList.add('active');
+            });
+        });
+
+        // Toggle Details for Criterion Cards
+        function toggleDetails(id) {
+            const details = document.getElementById(id);
+            details.classList.toggle('open');
+        }
+
+        // Graph Visualization using vis.js
+        let network;
+        let nodes, edges;
+
+        function initGraph() {
+            // Create nodes
+            const nodesArray = [
+                { id: 0, label: 'n0\n(Début)', color: '#05bfdb', font: { color: 'white', size: 14, face: 'Work Sans', bold: true } },
+                { id: 1, label: 'n1\nif (x > 0)', color: '#088395', font: { color: 'white', size: 12, face: 'Work Sans' } },
+                { id: 2, label: 'n2\ny = x + 1', color: '#088395', font: { color: 'white', size: 12, face: 'Work Sans' } },
+                { id: 3, label: 'n3\ny = x - 1', color: '#088395', font: { color: 'white', size: 12, face: 'Work Sans' } },
+                { id: 4, label: 'n4\nwhile (y > 0)', color: '#088395', font: { color: 'white', size: 12, face: 'Work Sans' } },
+                { id: 5, label: 'n5\ny = y - 1', color: '#088395', font: { color: 'white', size: 12, face: 'Work Sans' } },
+                { id: 6, label: 'n6\n(Fin)', color: '#0a4d68', font: { color: 'white', size: 14, face: 'Work Sans', bold: true } }
+            ];
+
+            // Create edges
+            const edgesArray = [
+                { from: 0, to: 1, label: '', arrows: 'to', color: { color: '#0a4d68' }, width: 2 },
+                { from: 1, to: 2, label: 'vrai', arrows: 'to', color: { color: '#0a4d68' }, width: 2, font: { size: 11 } },
+                { from: 1, to: 3, label: 'faux', arrows: 'to', color: { color: '#0a4d68' }, width: 2, font: { size: 11 } },
+                { from: 2, to: 4, label: '', arrows: 'to', color: { color: '#0a4d68' }, width: 2 },
+                { from: 3, to: 4, label: '', arrows: 'to', color: { color: '#0a4d68' }, width: 2 },
+                { from: 4, to: 5, label: 'vrai', arrows: 'to', color: { color: '#0a4d68' }, width: 2, font: { size: 11 } },
+                { from: 4, to: 6, label: 'faux', arrows: 'to', color: { color: '#0a4d68' }, width: 2, font: { size: 11 } },
+                { from: 5, to: 4, label: '', arrows: 'to', color: { color: '#0a4d68' }, width: 2, dashes: true }
+            ];
+
+            nodes = new vis.DataSet(nodesArray);
+            edges = new vis.DataSet(edgesArray);
+
+            const container = document.getElementById('graphContainer');
+            const data = { nodes: nodes, edges: edges };
+            const options = {
+                layout: {
+                    hierarchical: {
+                        direction: 'UD',
+                        sortMethod: 'directed',
+                        nodeSpacing: 120,
+                        levelSeparation: 100
+                    }
+                },
+                physics: {
+                    enabled: false
+                },
+                nodes: {
+                    shape: 'box',
+                    margin: 10,
+                    widthConstraint: { minimum: 100, maximum: 120 },
+                    borderWidth: 2,
+                    borderWidthSelected: 3,
+                    shadow: true
+                },
+                edges: {
+                    smooth: {
+                        type: 'cubicBezier',
+                        roundness: 0.4
+                    },
+                    shadow: true
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+        }
+
+        // Initialize graph on load
+        document.addEventListener('DOMContentLoaded', initGraph);
+
+        // Reset Graph
+        document.getElementById('resetGraph').addEventListener('click', () => {
+            nodes.forEach(node => {
+                nodes.update({ id: node.id, color: node.id === 0 ? '#05bfdb' : (node.id === 6 ? '#0a4d68' : '#088395') });
+            });
+            edges.forEach(edge => {
+                edges.update({ id: edge.id, color: { color: '#0a4d68' }, width: 2 });
+            });
+        });
+
+        // Highlight Nodes (Node Coverage)
+        document.getElementById('highlightNodes').addEventListener('click', () => {
+            // Reset first
+            nodes.forEach(node => {
+                nodes.update({ id: node.id, color: node.id === 0 ? '#05bfdb' : (node.id === 6 ? '#0a4d68' : '#088395') });
+            });
+
+            // Highlight all nodes progressively
+            let delay = 0;
+            nodes.forEach(node => {
+                setTimeout(() => {
+                    nodes.update({ id: node.id, color: '#00ffca' });
+                }, delay);
+                delay += 200;
+            });
+
+            // Update path display
+            document.getElementById('pathDisplay').innerHTML = `
+                <div class="path-node">n0</div>git 
+                <span class="path-arrow">→</span>
+                <div class="path-node">n1</div>
+                <span class="path-arrow">→</span>
+                <div class="path-node">n2</div>
+                <span class="path-arrow">→</span>
+                <div class="path-node">n4</div>
+                <span class="path-arrow">→</span>
+                <div class="path-node">n5</div>
+                <span class="path-arrow">→</span>
+                <div class="path-node">n4</div>
+                <span class="path-arrow">→</span>
+                <div class="path-node">n6</div>
+                <br><br>
+                <small style="opacity: 0.8;">Chemin couvrant tous les nœuds (Node Coverage)</small>
+            `;
+        });
+
+        // Highlight Edges (Edge Coverage)
+        document.getElementById('highlightEdges').addEventListener('click', () => {
+            // Reset first
+            edges.forEach(edge => {
+                edges.update({ id: edge.id, color: { color: '#0a4d68' }, width: 2 });
+            });
+
+            // Highlight all edges progressively
+            let delay = 0;
+            edges.forEach(edge => {
+                setTimeout(() => {
+                    edges.update({ id: edge.id, color: { color: '#00ffca' }, width: 4 });
+                }, delay);
+                delay += 250;
+            });
+
+            // Update path display
+            document.getElementById('pathDisplay').innerHTML = `
+                <div style="width: 100%;">
+                    <strong>Chemins nécessaires pour Edge Coverage :</strong><br><br>
+                    <div class="path-display">
+                        <div class="path-node">Chemin 1:</div>
+                        <div class="path-node">n0</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n1</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n2</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n4</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n5</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n4</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n6</div>
+                    </div>
+                    <div class="path-display">
+                        <div class="path-node">Chemin 2:</div>
+                        <div class="path-node">n0</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n1</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n3</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n4</div>
+                        <span class="path-arrow">→</span>
+                        <div class="path-node">n6</div>
+                    </div>
+                    <small style="opacity: 0.8; display: block; margin-top: 1rem;">2 chemins minimum pour couvrir toutes les arêtes</small>
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>
